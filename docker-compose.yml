@@ -34,13 +34,6 @@ services:
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
 
-      # Nextcloud behind Cloudflare Tunnel settings (enabled for external access)
-      - OVERWRITEPROTOCOL=http
-      - OVERWRITEHOST=192.168.1.4:9991
-
-      # - OVERWRITEPROTOCOL=https
-      # - OVERWRITEHOST=nas.soundsgoodlab.sg
-
       # Trust both Cloudflare Tunnel proxy AND local network IPs
       - TRUSTED_PROXIES=172.16.0.0/12 192.168.0.0/16 10.0.0.0/8
 
