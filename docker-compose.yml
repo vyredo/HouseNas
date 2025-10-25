@@ -110,6 +110,19 @@ services:
     networks:
       - nas_network
 
+
+  imaginary:
+    image: ghcr.io/nextcloud-releases/aio-imaginary:latest
+    platform: linux/arm64
+    container_name: nas_imaginary
+    restart: unless-stopped
+    command: -return-size
+    cap_add:
+      - SYS_NICE
+    networks:
+      - nas_network
+
+
 networks:
   nas_network:
     driver: bridge
