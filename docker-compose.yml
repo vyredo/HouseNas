@@ -37,7 +37,7 @@ services:
       - OVERWRITEHOST=nas.soundsgoodlab.sg
       - TRUSTED_PROXIES=172.16.0.0/12
       # PHP tuning for Radxa device
-      - PHP_MEMORY_LIMIT=512M
+      - PHP_MEMORY_LIMIT=4G
       - PHP_UPLOAD_LIMIT=16G
     volumes:
       - ./nextcloud/html:/var/www/html # Nextcloud application files (persisted)
