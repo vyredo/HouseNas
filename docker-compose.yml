@@ -90,11 +90,7 @@ services:
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
     volumes:
       - ./nextcloud/db:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U nextcloud -d nextcloud" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - nas_network
 
