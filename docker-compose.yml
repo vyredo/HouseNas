@@ -29,19 +29,24 @@ services:
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=nextcloud
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
+
       # Admin credentials (sourced from .env)
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
-      # Nextcloud behind Cloudflare Tunnel settings (required)
-      # - OVERWRITEPROTOCOL=https
-      # - OVERWRITEHOST=nas.soundsgoodlab.sg
-      - TRUSTED_PROXIES=172.16.0.0/12
+
+      # Nextcloud behind Cloudflare Tunnel settings (enabled for external access)
+      - OVERWRITEPROTOCOL=https
+      - OVERWRITEHOST=nas.soundsgoodlab.sg
+
+      # Trust both Cloudflare Tunnel proxy AND local network IPs
+      - TRUSTED_PROXIES=172.16.0.0/12 192.168.0.0/16 10.0.0.0/8
+
       # PHP tuning for Radxa device
       - PHP_MEMORY_LIMIT=4G
       - PHP_UPLOAD_LIMIT=16G
     volumes:
-      - ./nextcloud/html:/var/www/html # Nextcloud application files (persisted)
-      - /mnt/storage/nextcloud:/var/www/html/data # User files stored on external drive (absolute path)
+      - ./nextcloud/html:/var/www/html
+      - /mnt/storage/nextcloud:/var/www/html/data
     depends_on:
       nextcloud-db:
         condition: service_healthy
@@ -100,7 +105,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    # Secure Redis with a password from .env; the configure script will set a strong password.
     command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}" ]
     volumes:
       - ./nextcloud/redis:/data
@@ -112,14 +116,6 @@ services:
     networks:
       - nas_network
 
-# Shared network for service name resolution and isolation
 networks:
   nas_network:
     driver: bridge
-
-# Notes:
-# - All services use .env for sensitive values. Never commit .env to public repos.
-# - Ensure /mnt/storage/nextcloud is owned by UID:GID 1000:1000 as the setup script will set.
-# - Cloudflare Tunnel will route external HTTPS traffic to the cloudflared sidecar which forwards to nextcloud on port 80.
-# - To update images: `docker compose pull && docker compose up -d`
-# - If you prefer Redis without a password, remove the `--requirepass` command and REDIS_PASSWORD from .env (not recommended).
