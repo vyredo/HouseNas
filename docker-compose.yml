@@ -60,13 +60,12 @@ services:
     platform: linux/arm64
     container_name: nas_nextcloud_cron
     restart: unless-stopped
-    user: "1000:1000"
     env_file:
       - .env
     volumes:
       - ./nextcloud/html:/var/www/html
       - /mnt/storage/nextcloud:/var/www/html/data
-    entrypoint: /cron.sh # Run Nextcloud's cron tasks
+    entrypoint: /cron.sh
     depends_on:
       - nextcloud-db
       - redis
