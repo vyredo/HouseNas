@@ -4,7 +4,7 @@ protocol: http2
 
 ingress:
     - hostname: nas.soundsgoodlab.sg
-      service: http://nextcloud:80
+      service: http://nas_nextcloud:80
     - service: http_status:404
 
 loglevel: info
