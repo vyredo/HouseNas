@@ -24,7 +24,8 @@ services:
     env_file:
       - .env
     environment:
-      # Database connection variables (sourced from .env)
+      - TRUSTED_PROXIES=172.16.0.0/12 192.168.0.0/16 10.0.0.0/8
+      - OVERWRITECLIURL=https://nas.soundsgoodlab.sg # Database connection variables (sourced from .env)
       - POSTGRES_HOST=nextcloud-db
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=nextcloud
@@ -33,10 +34,6 @@ services:
       # Admin credentials (sourced from .env)
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
-
-      # Trust both Cloudflare Tunnel proxy AND local network IPs
-      - TRUSTED_PROXIES=172.16.0.0/12 192.168.0.0/16 10.0.0.0/8
-
       # PHP tuning for Radxa device
       - PHP_MEMORY_LIMIT=4G
       - PHP_UPLOAD_LIMIT=16G

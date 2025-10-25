@@ -1,12 +1,16 @@
 tunnel: c0db2e38-0ce2-495b-86a5-c9c39287e6e8
 credentials-file: /etc/cloudflared/credentials.json
 
-
-
 ingress:
-    - hostname: nas.soundsgoodlab.sg
-      service: http://nextcloud:80
-    - service: http_status:404
+  - hostname: nas.soundsgoodlab.sg
+    service: http://nextcloud:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+      responseTimeout: 30s
+      keepAliveTimeout: 30s
+      keepAliveConnections: 10
+  - service: http_status:404
 
 loglevel: info
 metrics: 0.0.0.0:8080
