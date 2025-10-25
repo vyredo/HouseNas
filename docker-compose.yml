@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
     user: "1000:1000" # run Nextcloud processes as UID 1000 to match host storage ownership
     ports:
-      - "9090:80"
+      - "9991:80"
     env_file:
       - .env
     environment:
