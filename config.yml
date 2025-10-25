@@ -1,0 +1,11 @@
+tunnel: c0db2e38-0ce2-495b-86a5-c9c39287e6e8
+credentials-file: /etc/cloudflared/credentials.json
+protocol: http2
+
+ingress:
+    - hostname: nas.soundsgoodlab.sg
+      service: http://nextcloud:5432
+    - service: http_status:404
+
+loglevel: info
+metrics: 0.0.0.0:8080
