@@ -6,9 +6,9 @@ ingress:
     service: http://nextcloud:80
     originRequest:
       noTLSVerify: true
-      http2Origin: false
+      disableChunkedEncoding: true
       connectTimeout: 60s
-      tcpKeepAlive: 30s
+      tlsTimeout: 60s
       keepAliveTimeout: 90s
       keepAliveConnections: 100
   - service: http_status:404
