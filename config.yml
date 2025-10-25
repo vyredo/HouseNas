@@ -6,10 +6,11 @@ ingress:
     service: http://nextcloud:80
     originRequest:
       noTLSVerify: true
-      connectTimeout: 30s
-      responseTimeout: 30s
-      keepAliveTimeout: 30s
-      keepAliveConnections: 10
+      http2Origin: false
+      connectTimeout: 60s
+      tcpKeepAlive: 30s
+      keepAliveTimeout: 90s
+      keepAliveConnections: 100
   - service: http_status:404
 
 loglevel: info
