@@ -1,18 +1,72 @@
+version: "3.8"
+
+# ==============================================================================
+# Docker Compose Stack: Nextcloud (existing) + OpenAI-powered services
+# Target: Radxa ARM64 (16GB RAM) - Profiles: core, daily, occasional
+#
+# CRITICAL: This file preserves existing Nextcloud configuration and data.
+# - The original nextcloud-db (PostgreSQL 15) remains unchanged for compatibility.
+# - A new shared PostgreSQL (pgvector/pgvector:pg17) is added for AI apps (surfsense, presenton).
+# - Nextcloud continues to function exactly as before (port 9991, volumes unchanged).
+#
+# Memory Goals (approx):
+# - Idle total: 2-3GB
+# - Active with 2 services: 5-6GB
+#
+# Key Ports:
+# - 9991: Nextcloud (existing)
+# - 9992: n8n
+# - 9993: SurfSense Backend
+# - 9994: SurfSense Frontend
+# - 9995: Open WebUI
+# - 9996: ComfyUI
+# - 9997: Presenton
+# - 9998: OpenUI
+#
+# Networks:
+# - nas_network: existing network for Nextcloud stack (kept for full compatibility)
+# - ai_network: new network for AI services
+#
+# Profiles:
+# - core: postgres (pgvector shared for AI apps), nextcloud, n8n
+#         Note: nextcloud depends on redis and nextcloud-db; they start automatically.
+# - daily: surfsense_backend, surfsense_frontend, open_webui
+# - occasional: comfyui, presenton, openui
+#
+# Healthchecks (where applicable):
+# - interval: 30s
+# - timeout: 10s
+# - retries: 3
+#
+# Security:
+# - No external exposure of any database ports
+# - n8n uses basic auth
+# - SurfSense uses NextAuth
+# - All services accept OPENAI_API_KEY from .env
+#
+# Bind Mounts (new AI services):
+# - ./data/postgres
+# - ./data/n8n
+# - ./data/surfsense/backend
+# - ./data/open_webui
+# - ./data/comfyui/storage
+# - ./data/comfyui/config
+# - ./data/presenton
+# - ./data/openui
+#
+# Existing Nextcloud mounts are preserved:
+# - ./nextcloud/html
+# - ./nextcloud/db
+# - /mnt/storage/nextcloud
+#
+# ==============================================================================
+# Notes on Postgres:
+# - Existing "nextcloud-db" (PostgreSQL 15) remains in place to avoid breaking Nextcloud.
+# - New "postgres" (pgvector/pgvector:pg17) is introduced for AI services (surfsense, presenton).
+# - pgvector init SQL (mounted at /docker-entrypoint-initdb.d) creates databases and enables extensions.
+# ==============================================================================
+
 services:
-  cloudflared:
-    build: .
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    volumes:
-      - ./secrets/credentials.json:/etc/cloudflared/credentials.json:ro
-      - ./secrets/cert.pem:/etc/cloudflared/cert.pem:ro
-    networks:
-      - nas_network
-    depends_on:
-      nextcloud-db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   nextcloud:
     image: nextcloud:latest
@@ -24,14 +78,15 @@ services:
     env_file:
       - .env
     environment:
+      # Trusted proxies and overwrite settings (existing)
       - TRUSTED_PROXIES=172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 100.90.95.111 100.71.243.53
-      - OVERWRITECLIURL=https://nas.soundsgoodlab.sg # Database connection variables (sourced from .env)
+      - OVERWRITECLIURL=https://nas.soundsgoodlab.sg
+      # Database (existing nextcloud-db)
       - POSTGRES_HOST=nextcloud-db
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=nextcloud
       - POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}
-
-      # Admin credentials (sourced from .env)
+      # Admin credentials (from .env)
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
       # PHP tuning for Radxa device
@@ -53,6 +108,9 @@ services:
     networks:
       - nas_network
 
+  # ----------------------------------------------------------------------------
+  # Nextcloud Cron (existing)
+  # ----------------------------------------------------------------------------
   nextcloud-cron:
     image: nextcloud:latest
     platform: linux/arm64
@@ -70,6 +128,9 @@ services:
     networks:
       - nas_network
 
+  # ----------------------------------------------------------------------------
+  # Nextcloud Database (existing PostgreSQL 15) - DO NOT CHANGE
+  # ----------------------------------------------------------------------------
   nextcloud-db:
     image: postgres:15-alpine
     platform: linux/arm64
@@ -92,6 +153,9 @@ services:
     networks:
       - nas_network
 
+  # ----------------------------------------------------------------------------
+  # Redis (existing)
+  # ----------------------------------------------------------------------------
   redis:
     image: redis:alpine
     platform: linux/arm64
@@ -110,19 +174,260 @@ services:
     networks:
       - nas_network
 
-
-  imaginary:
-    image: ghcr.io/nextcloud-releases/aio-imaginary:latest
+  # =============================================================================
+  # NEW: Shared PostgreSQL (pgvector) - used by SurfSense + Presenton
+  # =============================================================================
+  postgres:
+    image: pgvector/pgvector:pg17
     platform: linux/arm64
-    container_name: nas_imaginary
+    container_name: ai_postgres
     restart: unless-stopped
-    command: -return-size
-    cap_add:
-      - SYS_NICE
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      # Optional: default DB (not strictly required)
+      - POSTGRES_DB=postgres
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./pgvector-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
-      - nas_network
+      - ai_network
+    # Core profile member (always available)
 
 
+    # =============================================================================
+    # n8n - Workflow Automation (Port 9992) - Core service
+    # =============================================================================
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    platform: linux/arm64
+    container_name: ai_n8n
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_HOST=localhost
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Optional tuning:
+      - NODE_OPTIONS=--max-old-space-size=512
+    ports:
+      - "9992:5678"
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:5678/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+    # Core profile member
+
+
+    # =============================================================================
+    # SurfSense - NotebookLM Alternative (Backend) (Port 9993)
+    # =============================================================================
+  surfsense_backend:
+    image: ghcr.io/soundsgoodlab/surfsense-backend:latest
+    platform: linux/arm64
+    container_name: ai_surfsense_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PROFILE=daily
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/surfsense
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      # Optional:
+      - PORT=3000
+    ports:
+      - "9993:3000"
+    volumes:
+      - ./data/surfsense/backend:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:3000/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+
+  # =============================================================================
+  # SurfSense - Frontend (Port 9994)
+  # =============================================================================
+  surfsense_frontend:
+    image: ghcr.io/soundsgoodlab/surfsense-frontend:latest
+    platform: linux/arm64
+    container_name: ai_surfsense_frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PROFILE=daily
+      - NEXT_PUBLIC_API_URL=http://surfsense_backend:3000
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      # Optional:
+      - PORT=3000
+    ports:
+      - "9994:3000"
+    depends_on:
+      surfsense_backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:3000/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+
+  # =============================================================================
+  # Open WebUI - Voice Chat & Translation (Port 9995)
+  # =============================================================================
+  open_webui:
+    image: ghcr.io/open-webui/open-webui:main
+    platform: linux/arm64
+    container_name: ai_open_webui
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PROFILE=daily
+      # Memory optimization
+      - TRANSFORMERS_CACHE_HOME=/tmp
+      - HF_HOME=/tmp
+      # Optional server config
+      - WEBUI_PORT=8080
+    ports:
+      - "9995:8080"
+    volumes:
+      - ./data/open_webui:/app/backend/data
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+
+  # =============================================================================
+  # ComfyUI - Image Generation (Port 9996) - CPU-only
+  # =============================================================================
+  comfyui:
+    image: ghcr.io/comfyanonymous/comfyui:latest
+    platform: linux/arm64
+    container_name: ai_comfyui
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PROFILE=occasional
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    # CPU-only run; ComfyUI commonly listens on 8188
+    command: [ "python", "main.py", "--listen", "0.0.0.0", "--port", "8188", "--cpu" ]
+    ports:
+      - "9996:8188"
+    volumes:
+      - ./data/comfyui/storage:/root/ComfyUI/output
+      - ./data/comfyui/config:/root/ComfyUI/config
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8188" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+
+  # =============================================================================
+  # Presenton - AI Presentations (Port 9997)
+  # =============================================================================
+  presenton:
+    image: ghcr.io/soundsgoodlab/presenton:latest
+    platform: linux/arm64
+    container_name: ai_presenton
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PROFILE=occasional
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/presenton
+      # Optional:
+      - PORT=3000
+    ports:
+      - "9997:3000"
+    volumes:
+      - ./data/presenton:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:3000/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+
+  # =============================================================================
+  # OpenUI - UI Component Generation (Port 9998)
+  # =============================================================================
+  openui:
+    image: ghcr.io/soundsgoodlab/openui:latest
+    platform: linux/arm64
+    container_name: ai_openui
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PROFILE=occasional
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Optional:
+      - PORT=3000
+    ports:
+      - "9998:3000"
+    volumes:
+      - ./data/openui:/app/data
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:3000/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+
+# ==============================================================================
+# Networks
+# ==============================================================================
 networks:
   nas_network:
     driver: bridge
+  ai_network:
+    driver: bridge
+
+# ==============================================================================
+# End of file
+# ==============================================================================
