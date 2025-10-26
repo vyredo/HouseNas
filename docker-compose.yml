@@ -10,11 +10,10 @@
 # Key Ports:
 # - 9991: Nextcloud (existing)
 # - 9992: n8n
-# - 9993: SurfSense Backend
-# - 9994: SurfSense Frontend
-# - 9995: Open WebUI
-# - 9996: ComfyUI
-# - 9997: Presenton
+# - 9993: SurfSense Backend X
+# - 9994: SurfSense Frontend X 
+# - 9995: Open WebUI 
+# - 9996: ComfyUI X 
 # - 9998: OpenUI
 #
 # Networks:
@@ -181,49 +180,6 @@ services:
     networks:
       - ai_network
 
-  # SurfSense Backend (Port 9993)
-  surfsense_backend:
-    image: modsetter/surfsense-backend:latest
-    platform: linux/arm64
-    container_name: ai_surfsense_backend
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/surfsense
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - LITELLM_MODEL=openai/gpt-4o
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
-    ports:
-      - "9993:8000"
-    volumes:
-      - ./data/surfsense/backend:/app/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - ai_network
-
-  # SurfSense Frontend (Port 9994)
-  surfsense_frontend:
-    image: modsetter/surfsense-frontend:latest
-    platform: linux/arm64
-    container_name: ai_surfsense_frontend
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - NEXT_PUBLIC_API_URL=http://surfsense_backend:8000
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
-    ports:
-      - "9994:3000"
-    depends_on:
-      - surfsense_backend
-    networks:
-      - ai_network
-
   # Open WebUI - Voice Chat (Port 9995)
   open_webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -249,25 +205,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - ai_network
-
-  # ComfyUI - Image Generation (Port 9996)
-  comfyui:
-    image: yanwk/comfyui-boot:latest
-    platform: linux/arm64
-    container_name: ai_comfyui
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - CLI_ARGS=--cpu --listen 0.0.0.0 --port 8188
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    ports:
-      - "9996:8188"
-    volumes:
-      - ./data/comfyui/storage:/root
-      - ./data/comfyui/config:/root/.comfyui
     networks:
       - ai_network
 
