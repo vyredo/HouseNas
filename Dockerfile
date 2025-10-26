@@ -5,6 +5,6 @@ RUN set -ex; \
   apt-get install -y --no-install-recommends \
   ffmpeg \
   ghostscript \
-  libmagickcore-7.q16-10-extra \
+  imagemagick \
   ; \
   rm -rf /var/lib/apt/lists/*
