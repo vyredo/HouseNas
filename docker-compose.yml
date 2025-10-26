@@ -10,10 +10,8 @@
 # Key Ports:
 # - 9991: Nextcloud (existing)
 # - 9992: n8n
-# - 9993: SurfSense Backend X
-# - 9994: SurfSense Frontend X 
+# - 9993: anythingllm
 # - 9995: Open WebUI 
-# - 9996: ComfyUI X 
 # - 9998: OpenUI
 #
 # Networks:
@@ -177,6 +175,32 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - ai_network
+
+  anythingllm:
+    image: mintplexlabs/anythingllm:latest
+    platform: linux/arm64
+    container_name: ai_anythingllm
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - STORAGE_DIR=/app/server/storage
+      - SERVER_PORT=3001
+      # OpenAI Configuration
+      - LLM_PROVIDER=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL_PREF=gpt-5
+      - EMBEDDING_ENGINE=openai
+      - EMBEDDING_MODEL_PREF=text-embedding-3-small
+      - VECTOR_DB=lancedb
+    ports:
+      - "9993:3001"
+    volumes:
+      - ./data/anythingllm:/app/server/storage
+    cap_add:
+      - SYS_ADMIN
     networks:
       - ai_network
 
