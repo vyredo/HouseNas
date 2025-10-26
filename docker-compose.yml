@@ -271,27 +271,6 @@ services:
     networks:
       - ai_network
 
-  # Presenton - AI Presentations (Port 9997)
-  presenton:
-    image: presenton/presenton:latest
-    platform: linux/arm64
-    container_name: ai_presenton
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/presenton
-    ports:
-      - "9997:3000"
-    volumes:
-      - ./data/presenton:/app/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - ai_network
-
   # OpenUI - UI Generation (Port 9998)
   openui:
     image: ghcr.io/wandb/openui:latest
