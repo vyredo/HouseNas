@@ -155,18 +155,18 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    ports:
+      - "9992:5678"
     environment:
       - N8N_SECURE_COOKIE=false
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      - N8N_PORT=5678
+      - N8N_PORT=9992
       - N8N_PROTOCOL=http
-      - N8N_HOST=0.0.0.0
+      - N8N_HOST=100.71.243.53/
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NODE_OPTIONS=--max-old-space-size=512
-    ports:
-      - "9992:5678"
     volumes:
       - ./data/n8n:/home/node/.n8n
     healthcheck:
