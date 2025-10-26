@@ -31,7 +31,7 @@ services:
   # ============================================================================
 
   nextcloud:
-    image: nextcloud:latest
+    build: .
     platform: linux/arm64
     container_name: nas_nextcloud
     restart: unless-stopped
@@ -186,7 +186,6 @@ services:
     environment:
       - STORAGE_DIR=/app/server/storage
       - SERVER_PORT=3001
-      # OpenAI Configuration
       - LLM_PROVIDER=openai
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL_PREF=gpt-5
