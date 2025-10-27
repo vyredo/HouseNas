@@ -162,7 +162,7 @@ services:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=9992
       - N8N_PROTOCOL=http
-      - N8N_LISTEN_ADDRESS=0.0.0.0
+      # - N8N_LISTEN_ADDRESS=0.0.0.0
 
       # Security
       - N8N_SECURE_COOKIE=false
@@ -171,8 +171,8 @@ services:
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
 
       # Webhooks and URLs
-      - WEBHOOK_URL=http://rock-5c.tailfce21d.ts.net:9992
-      - N8N_EDITOR_BASE_URL=http://rock-5c.tailfce21d.ts.net:9992
+      # - WEBHOOK_URL=http://rock-5c.tailfce21d.ts.net:9992
+      # - N8N_EDITOR_BASE_URL=http://rock-5c.tailfce21d.ts.net:9992
 
       # Database (PostgreSQL with pgvector)
       - DB_TYPE=postgresdb
